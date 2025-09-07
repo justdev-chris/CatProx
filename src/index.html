@@ -1,1 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CatProx</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+  body { background: #121212; color: #eee; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  header { padding: 20px; text-align: center; font-size: 2rem; }
+  header span { font-size: 2.5rem; }
+  .input-container { margin: 20px; width: 90%; max-width: 600px; display: flex; }
+  input[type="text"] { flex: 1; padding: 10px 15px; font-size: 1rem; border: none; border-radius: 5px 0 0 5px; outline: none; }
+  button { padding: 10px 20px; font-size: 1rem; border: none; background: #1f8ef1; color: #fff; cursor: pointer; border-radius: 0 5px 5px 0; transition: background 0.2s; }
+  button:hover { background: #0f6edb; }
+  iframe { width: 90%; max-width: 1200px; height: 80vh; border: 2px solid #1f8ef1; border-radius: 10px; margin-bottom: 20px; }
+  footer { margin-bottom: 10px; font-size: 0.9rem; color: #aaa; }
+</style>
+</head>
+<body>
+<header>CatProx <span>🐱</span></header>
 
+<div class="input-container">
+  <input type="text" id="urlInput" placeholder="Enter website URL (https://example.com)">
+  <button id="goBtn">Go</button>
+</div>
+
+<iframe id="proxyFrame" src=""></iframe>
+
+<footer>CatProx by justdev-chris 🐾</footer>
+
+<script>
+  const goBtn = document.getElementById('goBtn');
+  const urlInput = document.getElementById('urlInput');
+  const proxyFrame = document.getElementById('proxyFrame');
+
+  goBtn.addEventListener('click', () => {
+    let url = urlInput.value.trim();
+    if (!url) return alert('Please enter a URL!');
+    // Add https:// if missing
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    // Set iframe src to Vercel backend with URL param
+    proxyFrame.src = `/api/proxy?url=${url}`;
+  });
+
+  urlInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') goBtn.click();
+  });
+</script>
+</body>
+</html>
