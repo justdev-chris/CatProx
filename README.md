@@ -1,9 +1,11 @@
 # CatProx
 
 a simple proxy which works well lol
+
 ---
 
 # problems/issues
+
 if the domain does "/folder/index.html" it will proxy correctly, if the index.html does "/folder/" or "/folder" it will not proxy it. 
 so trying to enter another page in the domain, make sure it does "/folder/index.html" 
 
