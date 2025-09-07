@@ -1,28 +1,67 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+import fetch from 'node-fetch';
 
-const app = express();
+export default async function handler(req, res) {
+    const target = req.query.target;
 
-const CatProxURL = 'https://catsdevs.online'; // link goes here
-
-const proxy = createProxyMiddleware({
-  target: CatProxURL,
-  changeOrigin: true,
-  secure: true,
-  logLevel: 'debug',
-  router: function(req) {
-    if (req.headers.host === 'catsdevs.online') { // change this too
-      req.headers['X-Forwarded-For'] = ''; 
-      req.headers['X-Real-IP'] = '';
-      req.headers['Via'] = '';
+    if (!target) {
+        res.status(400).send('No target URL provided');
+        return;
     }
-    return CatProxURL;
-  }
-});
 
-app.use('/', proxy);
+    try {
+        const response = await fetch(target, { headers: { 'User-Agent': req.headers['user-agent'] } });
+        const contentType = response.headers.get('content-type');
+        const body = await response.text();
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`CatProx is running on port ${port}`);
-});
+        // Allow any origin to use this proxy
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', contentType);
+        res.send(body);
+    } catch (err) {
+        res.status(500).send('Error fetching target URL: ' + err.message);
+    }
+}import fetch from 'node-fetch';
+
+export default async function handler(req, res) {
+    const target = req.query.target;
+
+    if (!target) {
+        res.status(400).send('No target URL provided');
+        return;
+    }
+
+    try {
+        const response = await fetch(target, { headers: { 'User-Agent': req.headers['user-agent'] } });
+        const contentType = response.headers.get('content-type');
+        const body = await response.text();
+
+        // Allow any origin to use this proxy
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', contentType);
+        res.send(body);
+    } catch (err) {
+        res.status(500).send('Error fetching target URL: ' + err.message);
+    }
+}import fetch from 'node-fetch';
+
+export default async function handler(req, res) {
+    const target = req.query.target;
+
+    if (!target) {
+        res.status(400).send('No target URL provided');
+        return;
+    }
+
+    try {
+        const response = await fetch(target, { headers: { 'User-Agent': req.headers['user-agent'] } });
+        const contentType = response.headers.get('content-type');
+        const body = await response.text();
+
+        // Allow any origin to use this proxy
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', contentType);
+        res.send(body);
+    } catch (err) {
+        res.status(500).send('Error fetching target URL: ' + err.message);
+    }
+}
