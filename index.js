@@ -3,10 +3,10 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
-const nggUrl = 'https://example.com'; // link goes here
+const catproxurl = 'https://example.com'; // link goes here
 
 const proxy = createProxyMiddleware({
-  target: nggUrl,
+  target: catproxurl,
   changeOrigin: true,
   secure: true,
   logLevel: 'debug',
@@ -16,7 +16,7 @@ const proxy = createProxyMiddleware({
       req.headers['X-Real-IP'] = '';
       req.headers['Via'] = '';
     }
-    return nggUrl;
+    return catproxurl;
   }
 });
 
@@ -24,5 +24,5 @@ app.use('/', proxy);
 
 const port = process.env.PORT || 443;
 app.listen(port, () => {
-  console.log(`CybriaGG is running on port ${port}`);
+  console.log(`CatProxx is running on port ${port}`);
 });
