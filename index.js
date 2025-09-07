@@ -1,28 +1,29 @@
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { JSDOM } = require('jsdom'); // for rewriting HTML
 
 const app = express();
+const target = 'https://example.com';
 
-const catproxurl = 'https://example.com'; // link goes here
+app.use('/', async (req, res, next) => {
+  if (req.headers.accept && req.headers.accept.includes('text/html')) {
+    // Fetch HTML from target
+    const response = await fetch(target + req.url);
+    let html = await response.text();
 
-const proxy = createProxyMiddleware({
-  target: catproxurl,
-  changeOrigin: true,
-  secure: true,
-  logLevel: 'debug',
-  router: function(req) {
-    if (req.headers.host === 'example.com') { // change this too
-      req.headers['X-Forwarded-For'] = ''; 
-      req.headers['X-Real-IP'] = '';
-      req.headers['Via'] = '';
-    }
-    return catproxurl;
+    // Rewrite all URLs to go through the proxy
+    html = html.replace(/(href|src)=["'](\/[^"']*)["']/g, `$1="/$2"`);
+
+    res.send(html);
+  } else {
+    // For non-HTML (JS, CSS, images)
+    createProxyMiddleware({
+      target: target,
+      changeOrigin: true,
+      secure: true,
+      logLevel: 'debug'
+    })(req, res, next);
   }
 });
 
-app.use('/', proxy);
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`CatProx is running on port ${port}`);
-});
+app.listen(443, () => console.log('CatProxx Enhanced running! 🐾'));
