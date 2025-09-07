@@ -22,7 +22,7 @@ const proxy = createProxyMiddleware({
 
 app.use('/', proxy);
 
-const port = process.env.PORT || 443;
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`CatProxx is running on port ${port}`);
+  console.log(`CatProx is running on port ${port}`);
 });
