@@ -1,17 +1,15 @@
-import fetch from 'node-fetch';
-
+// api/proxy.js
 export const config = {
-  runtime: 'edge', // Vercel Edge Function
+  runtime: 'edge',
 };
 
 export default async function handler(req) {
   try {
-    const urlParam = req.url.split('?url=')[1];
+    const urlParam = new URL(req.url).searchParams.get('url');
     if (!urlParam) return new Response('No URL provided', { status: 400 });
 
     const targetURL = urlParam;
 
-    // Copy all headers except sensitive ones
     const headers = {};
     req.headers.forEach((value, key) => {
       if (!['host', 'x-forwarded-for', 'x-real-ip', 'via'].includes(key.toLowerCase())) {
@@ -23,15 +21,11 @@ export default async function handler(req) {
       method: req.method,
       headers,
       redirect: 'manual',
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
     };
-
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      fetchOptions.body = req.body;
-    }
 
     const response = await fetch(targetURL, fetchOptions);
 
-    // Forward response headers
     const respHeaders = new Headers(response.headers);
     respHeaders.set('Access-Control-Allow-Origin', '*');
     respHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
