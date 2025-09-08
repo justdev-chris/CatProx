@@ -1,0 +1,28 @@
+const express = require("express");
+const { createProxyMiddleware } = require("http-proxy-middleware");
+
+const app = express();
+
+const CatProxURL = "https://catsdevs.online"; // link goes here
+
+const proxy = createProxyMiddleware({
+  target: CatProxURL,
+  changeOrigin: true,
+  secure: true,
+  logLevel: "debug",
+  router: function (req) {
+    if (req.headers.host === "catsdevs.online") {  // change this too
+      req.headers["X-Forwarded-For"] = "";
+      req.headers["X-Real-IP"] = "";
+      req.headers["Via"] = "";
+    }
+    return CatProxURL;
+  },
+});
+
+app.use("/", proxy);
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`CatProx is running on port ${port}`);
+});
