@@ -5,79 +5,104 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CatProx 🐾</title>
 <style>
-  body { margin: 0; font-family: sans-serif; background: #121212; color: #eee; }
-  #menu {
-    position: fixed; top: 0; left: 0; right: 0; height: 50px;
-    background: #1e1e1e; display: flex; align-items: center; gap: 10px;
-    padding: 0 10px; box-sizing: border-box; z-index: 1000;
-  }
-  #menu h1 { margin: 0; font-size: 1.2em; color: #4ee; flex-shrink: 0; }
-  #menu input { flex-grow: 1; padding: 5px; border-radius: 5px; border: none; }
-  #menu button { padding: 6px 12px; border-radius: 5px; border: none; background: #4ee; color: #121212; cursor: pointer; }
-  #current { font-size: 0.9em; color: #ccc; margin-left: 10px; }
-  iframe { position: fixed; top: 50px; left: 0; width: 100%; height: calc(100% - 50px); border: none; }
+  body { background-color: #121212; color: #eee; font-family: sans-serif; margin:0; padding:0; overflow-x:hidden; }
+  header { background:#1e1e1e; padding:15px; text-align:center; position:sticky; top:0; z-index:999; }
+  header input { width:60%; padding:6px; border-radius:5px; border:none; }
+  header button { padding:6px 12px; border-radius:5px; border:none; background:#4ee; color:#121212; cursor:pointer; }
+  #proxy-container { padding:20px; }
+  a { color:#4ee; }
 </style>
 </head>
 <body>
-
-<div id="menu">
+<header>
   <h1>CatProx 🐾</h1>
   <input type="text" id="url" placeholder="Enter URL here">
   <button id="go">Go!</button>
-  <span id="current"></span>
-</div>
+  <div>Current URL: <span id="current-url">None</span></div>
+</header>
 
-<iframe id="frame" src=""></iframe>
+<div id="proxy-container">Enter a URL above and hit Go!</div>
 
 <script>
 const proxyBase = '/api/proxy?url=';
-const iframe = document.getElementById('frame');
-const goBtn = document.getElementById('go');
+const container = document.getElementById('proxy-container');
 const urlInput = document.getElementById('url');
-const current = document.getElementById('current');
+const goBtn = document.getElementById('go');
+const currentUrlDisplay = document.getElementById('current-url');
+
+let currentURL = '';
 
 function toAbsolute(base, relative) {
-    try { return new URL(relative, base).href; } 
-    catch { return relative; }
+    try {
+        return new URL(relative, base).href;
+    } catch {
+        return relative;
+    }
 }
 
-function rewriteDoc(doc, baseURL) {
-    // Rewrite <a> links
-    doc.querySelectorAll('a[href]').forEach(a => {
-        const orig = toAbsolute(baseURL, a.getAttribute('href'));
-        a.setAttribute('href', proxyBase + orig);
-        a.setAttribute('target','_self');
-    });
-    // Rewrite scripts
-    doc.querySelectorAll('script[src]').forEach(s => { s.src = proxyBase + toAbsolute(baseURL, s.src); });
-    // Rewrite stylesheets
-    doc.querySelectorAll('link[rel="stylesheet"]').forEach(l => { l.href = proxyBase + toAbsolute(baseURL, l.href); });
-    // Rewrite images
-    doc.querySelectorAll('img[src]').forEach(img => { img.src = proxyBase + toAbsolute(baseURL, img.src); });
-    // Rewrite forms
-    doc.querySelectorAll('form[action]').forEach(f => { f.action = proxyBase + toAbsolute(baseURL, f.action); });
+async function fetchAndInject(url) {
+    try {
+        const res = await fetch(proxyBase + url);
+        let html = await res.text();
+        
+        // Rewrite all relative links to proxy
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const baseURL = url;
+
+        // Links
+        doc.querySelectorAll('a[href]').forEach(a => {
+            const abs = toAbsolute(baseURL, a.getAttribute('href'));
+            a.onclick = (e) => { e.preventDefault(); loadURL(abs); };
+            a.setAttribute('href', '#');
+        });
+
+        // Scripts
+        doc.querySelectorAll('script[src]').forEach(s => {
+            const abs = toAbsolute(baseURL, s.src);
+            s.src = proxyBase + abs;
+        });
+
+        // Stylesheets
+        doc.querySelectorAll('link[rel="stylesheet"]').forEach(l => {
+            const abs = toAbsolute(baseURL, l.href);
+            l.href = proxyBase + abs;
+        });
+
+        // Images
+        doc.querySelectorAll('img[src]').forEach(img => {
+            const abs = toAbsolute(baseURL, img.src);
+            img.src = proxyBase + abs;
+        });
+
+        // Forms
+        doc.querySelectorAll('form[action]').forEach(f => {
+            const abs = toAbsolute(baseURL, f.action);
+            f.onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(f);
+                const method = f.method.toUpperCase();
+                const formURL = proxyBase + abs;
+                await fetch(formURL, { method, body: formData });
+                loadURL(baseURL); // reload current page after submit
+            };
+        });
+
+        container.innerHTML = '';
+        doc.body.querySelectorAll('*').forEach(node => container.appendChild(node.cloneNode(true)));
+        currentURL = url;
+        currentUrlDisplay.textContent = currentURL;
+    } catch(err) {
+        container.innerHTML = `<p style="color:red;">Error fetching URL: ${err}</p>`;
+    }
 }
 
 function loadURL(url) {
-    current.textContent = url;
-    iframe.src = proxyBase + encodeURIComponent(url);
+    fetchAndInject(url);
 }
 
-goBtn.addEventListener('click', () => { loadURL(urlInput.value); });
-
-iframe.addEventListener('load', () => {
-    try {
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        const baseURL = iframe.contentWindow.location.href;
-        rewriteDoc(doc, baseURL);
-        
-        iframe.contentWindow.oldLocationAssign = iframe.contentWindow.location.assign;
-        iframe.contentWindow.location.assign = function(newURL) {
-            loadURL(toAbsolute(baseURL, newURL));
-        };
-    } catch(e) {
-        console.warn('Cross-origin content cannot be rewritten, proxy still fetches it.');
-    }
+goBtn.addEventListener('click', () => {
+    loadURL(urlInput.value);
 });
 </script>
 </body>
