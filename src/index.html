@@ -3,49 +3,82 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CatProx</title>
+<title>CatProx 🐾</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-  body { background: #121212; color: #eee; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-  header { padding: 20px; text-align: center; font-size: 2rem; }
-  header span { font-size: 2.5rem; }
-  .input-container { margin: 20px; width: 90%; max-width: 600px; display: flex; }
-  input[type="text"] { flex: 1; padding: 10px 15px; font-size: 1rem; border: none; border-radius: 5px 0 0 5px; outline: none; }
-  button { padding: 10px 20px; font-size: 1rem; border: none; background: #1f8ef1; color: #fff; cursor: pointer; border-radius: 0 5px 5px 0; transition: background 0.2s; }
-  button:hover { background: #0f6edb; }
-  iframe { width: 90%; max-width: 1200px; height: 80vh; border: 2px solid #1f8ef1; border-radius: 10px; margin-bottom: 20px; }
-  footer { margin-bottom: 10px; font-size: 0.9rem; color: #aaa; }
+  body { margin: 0; font-family: sans-serif; background: #121212; color: #eee; }
+  #menu {
+    position: fixed; top: 0; left: 0; right: 0; height: 50px;
+    background: #1e1e1e; display: flex; align-items: center; gap: 10px;
+    padding: 0 10px; box-sizing: border-box; z-index: 1000;
+  }
+  #menu h1 { margin: 0; font-size: 1.2em; color: #4ee; flex-shrink: 0; }
+  #menu input { flex-grow: 1; padding: 5px; border-radius: 5px; border: none; }
+  #menu button { padding: 6px 12px; border-radius: 5px; border: none; background: #4ee; color: #121212; cursor: pointer; }
+  #current { font-size: 0.9em; color: #ccc; margin-left: 10px; }
+  iframe { position: fixed; top: 50px; left: 0; width: 100%; height: calc(100% - 50px); border: none; }
 </style>
 </head>
 <body>
-<header>CatProx <span>🐱</span></header>
 
-<div class="input-container">
-  <input type="text" id="urlInput" placeholder="Enter website URL (https://example.com)">
-  <button id="goBtn">Go</button>
+<div id="menu">
+  <h1>CatProx 🐾</h1>
+  <input type="text" id="url" placeholder="Enter URL here">
+  <button id="go">Go!</button>
+  <span id="current"></span>
 </div>
 
-<iframe id="proxyFrame" src=""></iframe>
-
-<footer>CatProx by justdev-chris 🐾</footer>
+<iframe id="frame" src=""></iframe>
 
 <script>
-  const goBtn = document.getElementById('goBtn');
-  const urlInput = document.getElementById('urlInput');
-  const proxyFrame = document.getElementById('proxyFrame');
+const proxyBase = '/api/proxy?url=';
+const iframe = document.getElementById('frame');
+const goBtn = document.getElementById('go');
+const urlInput = document.getElementById('url');
+const current = document.getElementById('current');
 
-  goBtn.addEventListener('click', () => {
-    let url = urlInput.value.trim();
-    if (!url) return alert('Please enter a URL!');
-    // Add https:// if missing
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    // Set iframe src to Vercel backend with URL param
-    proxyFrame.src = `/api/proxy?url=${url}`;
-  });
+function toAbsolute(base, relative) {
+    try { return new URL(relative, base).href; } 
+    catch { return relative; }
+}
 
-  urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') goBtn.click();
-  });
+function rewriteDoc(doc, baseURL) {
+    // Rewrite <a> links
+    doc.querySelectorAll('a[href]').forEach(a => {
+        const orig = toAbsolute(baseURL, a.getAttribute('href'));
+        a.setAttribute('href', proxyBase + orig);
+        a.setAttribute('target','_self');
+    });
+    // Rewrite scripts
+    doc.querySelectorAll('script[src]').forEach(s => { s.src = proxyBase + toAbsolute(baseURL, s.src); });
+    // Rewrite stylesheets
+    doc.querySelectorAll('link[rel="stylesheet"]').forEach(l => { l.href = proxyBase + toAbsolute(baseURL, l.href); });
+    // Rewrite images
+    doc.querySelectorAll('img[src]').forEach(img => { img.src = proxyBase + toAbsolute(baseURL, img.src); });
+    // Rewrite forms
+    doc.querySelectorAll('form[action]').forEach(f => { f.action = proxyBase + toAbsolute(baseURL, f.action); });
+}
+
+function loadURL(url) {
+    current.textContent = url;
+    iframe.src = proxyBase + encodeURIComponent(url);
+}
+
+goBtn.addEventListener('click', () => { loadURL(urlInput.value); });
+
+iframe.addEventListener('load', () => {
+    try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        const baseURL = iframe.contentWindow.location.href;
+        rewriteDoc(doc, baseURL);
+        
+        iframe.contentWindow.oldLocationAssign = iframe.contentWindow.location.assign;
+        iframe.contentWindow.location.assign = function(newURL) {
+            loadURL(toAbsolute(baseURL, newURL));
+        };
+    } catch(e) {
+        console.warn('Cross-origin content cannot be rewritten, proxy still fetches it.');
+    }
+});
 </script>
 </body>
 </html>
