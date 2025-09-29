@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>catprox 🐾</title>
+</head>
+<body>
+  <h1>catprox 🐾</h1>
+  <form id="proxyForm">
+    <input type="text" id="urlInput" placeholder="Enter full URL (https://example.com)" style="width: 300px;">
+    <button type="submit">Go</button>
+  </form>
+  <iframe id="proxyFrame" style="width:100%;height:500px;margin-top:20px;"></iframe>
+
+  <script>
+    // register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('sw.js registered! 🐾✨'))
+        .catch(console.error);
+    }
+
+    const form = document.getElementById('proxyForm');
+    const frame = document.getElementById('proxyFrame');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) return;
+
+      // fetch the page HTML via proxy
+      fetch(`/api/proxy?url=${encodeURIComponent(url)}`)
+        .then(res => res.text())
+        .then(html => {
+          // rewrite internal URLs
+          const rewritten = html.replace(
+            /(src|href)=["']([^"']+)["']/gi,
+            (match, attr, path) => {
+              try {
+                const abs = new URL(path, url).href;
+                return `${attr}="/api/proxy?url=${encodeURIComponent(abs)}"`;
+              } catch {
+                return match;
+              }
+            }
+          );
+
+          // inject rewritten HTML into iframe
+          frame.srcdoc = rewritten;
+        })
+        .catch(console.error);
+    });
+  </script>
+</body>
+</html>
